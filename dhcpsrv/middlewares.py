@@ -163,4 +163,5 @@ class MemoryPool(Middleware, DnsMiddleware):
 
     @classmethod
     def fmt_hwaddr(cls, b_hwaddr, hwaddr_len):
-        return b_hwaddr[:hwaddr_len].hex()
+        return ':'.join(['{:02x}'.format(b) for b in b_hwaddr[:hwaddr_len]])
+
