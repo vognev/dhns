@@ -80,10 +80,8 @@ class MemoryPool(Middleware, DnsMiddleware):
             b_ipaddr = self.allocate()
 
         options = {
-            dhcplib.DHCPOPT_IPADDR: b_ipaddr,
             dhcplib.DHCPOPT_BROADCAST: self.broadcast,
             dhcplib.DHCPOPT_LEASE_TIME: struct.pack('!I', 3600),
-            # todo: ensure unique
             dhcplib.DHCPOPT_HOSTNAME: hostname
         }
 

@@ -127,4 +127,6 @@ class Packet:
             myio.write(struct.pack(UInt8, val_len))
             myio.write(val)
 
+        myio.write(struct.pack(UInt8, 255))
+
         return myio.getvalue()
