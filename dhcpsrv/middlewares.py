@@ -56,6 +56,7 @@ class MemoryPool(Middleware, DnsMiddleware):
                     answer.add_answer(
                         RR(rname=query.q.qname, rtype=QTYPE.A, ttl=3600, rdata=RDMAP["A"](inet_ntoa(ipaddr)))
                     )
+                    return self
 
     def handle_discover(self, query: Packet, answer: Packet):
         b_hwaddr = query.chaddr

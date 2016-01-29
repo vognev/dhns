@@ -20,9 +20,9 @@ class Handler:
 
         for middleware in self.middleware:
             if middleware[0].handle_dhcp_packet(interface, query, answer):
-                break
+                return answer, middleware[0]
 
-        return answer
+        return answer, None
 
     def _sort(self):
         self.middleware.sort(key=lambda tup: tup[1], reverse=True)

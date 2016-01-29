@@ -21,12 +21,11 @@ class UdpServer(BaseServer):
         buf, ancdata, _, addr = self._sock.recvmsg(512, socket.CMSG_SPACE(100))
         interface = self._get_cmsg_to(ancdata)
 
-        if (addr[0] == '0.0.0.0'):
-            addr = ('10.0.4.255', addr[1])
-
         try:
             query = Packet.parse(buf)
-            answer = self._handler.handle(interface, query)
+            answer, pool = self._handler.handle(interface, query)
+            if (addr[0] == '0.0.0.0' and pool):
+                addr = (socket.inet_ntoa(pool.broadcast), addr[1])
             self._queue.append((addr, answer))
         except Exception as e:
             traceback.print_exc()
