@@ -34,8 +34,7 @@ class UdpServer(BaseServer):
     def write(self):
         if len(self._queue):
             tup = self._queue.pop(0)
-            n = self._sock.sendto(tup[1].pack(), tup[0])
-            print(n)
+            self._sock.sendto(tup[1].pack(), tup[0])
 
     def wqlen(self):
         return len(self._queue)

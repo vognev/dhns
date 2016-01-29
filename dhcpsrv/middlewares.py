@@ -38,13 +38,10 @@ class MemoryPool(Middleware, DnsMiddleware):
         if interface == inet_ntoa(self.address):
             msg_type, = struct.unpack('!B', query.opts.get(dhcplib.DHCPOPT_MSG_TYPE))
             if msg_type == dhcplib.DHCPDISCOVER:
-                print('DISCOVER')
                 self.handle_discover(query, answer)
             elif msg_type == dhcplib.DHCPREQUEST:
-                print('REQUEST')
                 self.handle_request(query, answer)
             elif msg_type == dhcplib.DHCPDECLINE:
-                print('DECLINE')
                 self.handle_decline(query, answer)
             else:
                 raise Exception('unsupported request type: ' + msg_type)
@@ -101,7 +98,6 @@ class MemoryPool(Middleware, DnsMiddleware):
             answer.opts[k] = v
 
         self.offers[s_hwaddr] = (b_ipaddr, options)
-        print(self.offers[s_hwaddr])
 
     def handle_request(self, query: Packet, answer: Packet):
         b_hwaddr = query.chaddr
