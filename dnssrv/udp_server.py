@@ -16,6 +16,7 @@ class UdpServer(BaseServer):
         buf, addr = self._sock.recvfrom(512)
         try:
             query = DNSRecord.parse(buf)
+            print("DNS Q %s FROM: %s:%d" % (query.q.qname, addr[0], addr[1]))
             answer = self._handler.handle(query)
             self._queue.append((addr, answer))
         except Exception as e:

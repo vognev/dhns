@@ -10,7 +10,9 @@ class Middleware:
     def handle_dhcp_packet(self, interface, query: Packet, answer: Packet):
         raise NotImplemented
 
-
+# todo: merge lease/offer
+# todo: inject lease time
+# todo: handle expiration
 class MemoryPool(Middleware, DnsMiddleware):
     def __init__(self, address=None, netmask=None, nameservers=None, gateway=None, domain=None):
         self.domain = domain
@@ -103,9 +105,10 @@ class MemoryPool(Middleware, DnsMiddleware):
         b_hwaddr = query.chaddr
         s_hwaddr = self.fmt_hwaddr(b_hwaddr, query.hlen)
 
-        offer = self.offers.pop(s_hwaddr, None)
-        if offer:
-            b_ipaddr, options = offer
+        lease, offer = self.leases.pop(s_hwaddr, None), self.offers.pop(s_hwaddr, None)
+
+        if offer or lease:
+            b_ipaddr, options = offer or lease
             answer.opts[dhcplib.DHCPOPT_MSG_TYPE] = struct.pack('!B', dhcplib.DHCPACK)
             answer.yiaddr = b_ipaddr
 

@@ -16,7 +16,7 @@ class SrvHandler(Middleware):
     def handle_dns_packet(self, query: DNSRecord, answer: DNSRecord):
         if query.q.qname.matchSuffix(self.suffix):
             try:
-                local_a = DNSRecord.parse(query.send(self.address, self.port))
+                local_a = DNSRecord.parse(query.send(self.address, port=self.port))
                 for rr in local_a.rr:
                     answer.add_answer(rr)
                 return True

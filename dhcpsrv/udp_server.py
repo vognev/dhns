@@ -20,6 +20,7 @@ class UdpServer(BaseServer):
     def read(self):
         buf, ancdata, _, addr = self._sock.recvmsg(512, socket.CMSG_SPACE(100))
         interface = self._get_cmsg_to(ancdata)
+        print("DNS Q FROM: %s:%d" % addr)
 
         try:
             query = Packet.parse(buf)

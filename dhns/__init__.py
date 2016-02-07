@@ -13,8 +13,8 @@ class DhcpNameserver():
         self.dns  = dnssrv.Handler()
         self.dhcp = dhcpsrv.Handler()
         self.mul  = Multiplexer(
-             DnsUdpServer(('0.0.0.0', int(getenv("DNSPORT",  5353))), self.dns),
-            DhcpUdpServer(('0.0.0.0', int(getenv("DHCPPORT", 6767))), self.dhcp)
+             DnsUdpServer(('', int(getenv("DNSPORT",  5353))), self.dns),
+            DhcpUdpServer(('', int(getenv("DHCPPORT", 6767))), self.dhcp)
         )
         self.dns.add_middleware(SysHandler(), dnssrv.PRIO_LOWEST)
 
