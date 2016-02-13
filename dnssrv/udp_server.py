@@ -1,7 +1,8 @@
-import socket, traceback
+import socket, traceback, time
 from dnslib import DNSRecord
 from multiplexer.server import Server as BaseServer
 from dnssrv import Handler
+from cachetools import LRUCache
 
 
 class UdpServer(BaseServer):
@@ -11,13 +12,35 @@ class UdpServer(BaseServer):
         self._sock.bind(addr)
         self._handler = handler
         self._queue = []
+        self._cache = LRUCache(64000)
 
     def read(self):
         buf, addr = self._sock.recvfrom(512)
         try:
             query = DNSRecord.parse(buf)
             print("DNS Q %s FROM: %s:%d" % (query.q.qname, addr[0], addr[1]))
-            answer = self._handler.handle(query)
+
+            key = "%s/%d" % (query.q.qname, query.q.qclass)
+            now = time.time()
+
+            answer = None
+
+            if key in self._cache:
+                received, cached = self._cache[key]
+                try:
+                    answer = query.reply()
+                    for rr in cached.rr:
+                        rr.ttl -= int(now - received)
+                        answer.add_answer(rr)
+                    self._cache[key] = (now, cached)
+                except:
+                    answer = None
+
+            if answer is None:
+                answer = self._handler.handle(query)
+                if len(answer.rr):
+                    self._cache[key] = (time.time(), answer)
+
             self._queue.append((addr, answer))
         except Exception as e:
             traceback.print_exc()

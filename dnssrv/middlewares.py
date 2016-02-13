@@ -1,6 +1,5 @@
 from dnslib import RR, DNSRecord, RDMAP, QTYPE
 from resolvconf import get_system_resolvers
-import traceback
 
 
 class Middleware:
@@ -40,8 +39,8 @@ class SysHandler(Middleware):
                 for rr in local_a.rr:
                     answer.add_answer(rr)
                 return True
-            except Exception as e:
-                traceback.print_exc()
+            except:
+                pass
 
 
 class FixHandler(Middleware):
