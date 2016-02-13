@@ -1,5 +1,6 @@
 from dnslib import RR, DNSRecord, RDMAP, QTYPE
 from resolvconf import get_system_resolvers
+import traceback
 
 
 class Middleware:
@@ -35,12 +36,12 @@ class SysHandler(Middleware):
     def handle_dns_packet(self, query: DNSRecord, answer: DNSRecord):
         for resolver in self.resolvers:
             try:
-                local_a = DNSRecord.parse(query.send(resolver[0], resolver[1]))
+                local_a = DNSRecord.parse(query.send(resolver[0], resolver[1], timeout=5))
                 for rr in local_a.rr:
                     answer.add_answer(rr)
                 return True
-            except:
-                pass
+            except Exception as e:
+                traceback.print_exc()
 
 
 class FixHandler(Middleware):
