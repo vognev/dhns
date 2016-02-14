@@ -1,6 +1,7 @@
 from multiplexer.server import Server
 from select import select
 
+
 class Multiplexer:
     def __init__(self, *args):
         self.servers = args
@@ -9,7 +10,7 @@ class Multiplexer:
     def start(self):
             self.running = True
             while self.running:
-                r, w, e = select(self.servers, [s for s in self.servers if s.wqlen()], [], 10)
+                r, w, e = select(self.servers, [s for s in self.servers if s.wqlen()], [], 1)
                 for srv in r:
                     srv.read()
                 for srv in w:
