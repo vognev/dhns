@@ -46,6 +46,8 @@ class MemoryPool(Middleware, DnsMiddleware):
                 self.handle_request(query, answer)
             elif msg_type == dhcplib.DHCPDECLINE:
                 self.handle_decline(query, answer)
+            elif msg_type == dhcplib.DHCPRELEASE:
+                self.handle_release(query, answer)
             else:
                 print('dhcp: unsupported request type: %s' % msg_type)
             return True
@@ -116,6 +118,15 @@ class MemoryPool(Middleware, DnsMiddleware):
             answer.opts[k] = v
 
     def handle_decline(self, query: Packet, answer: Packet):
+        b_hwaddr = query.chaddr
+        s_hwaddr = self.fmt_hwaddr(b_hwaddr, query.hlen)
+
+        self.leases.pop(s_hwaddr, None)
+        self.offers.pop(s_hwaddr, None)
+
+        answer.opts[dhcplib.DHCPOPT_MSG_TYPE] = struct.pack('!B', dhcplib.DHCPACK)
+
+    def handle_release(self, query: Packet, answer: Packet):
         b_hwaddr = query.chaddr
         s_hwaddr = self.fmt_hwaddr(b_hwaddr, query.hlen)
 
