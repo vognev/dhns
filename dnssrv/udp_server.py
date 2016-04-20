@@ -1,4 +1,4 @@
-import socket, traceback, time
+import socket, traceback, threading
 from dnslib import DNSRecord
 from multiplexer.server import Server as BaseServer
 from dnssrv import Handler
@@ -11,15 +11,12 @@ class UdpServer(BaseServer):
         self._sock.bind(addr)
         self._handler = handler
         self._queue = []
+        self._lock = threading.Lock()
 
     def read(self):
-        buf, addr = self._sock.recvfrom(512)
-        try:
-            query = DNSRecord.parse(buf)
-            print("DNS Q %s FROM: %s:%d" % (query.q.qname, addr[0], addr[1]))
-            self._queue.append((addr, self._handler.handle(query)))
-        except Exception as e:
-            traceback.print_exc()
+        #self.process()
+        thread = threading.Thread(group=None, target=self.process)
+        thread.start()
 
     def write(self):
         if len(self._queue):
@@ -31,3 +28,15 @@ class UdpServer(BaseServer):
 
     def fileno(self):
         return self._sock.fileno()
+
+    def process(self):
+        with self._lock:
+            buf, addr = self._sock.recvfrom(512)
+        try:
+            query = DNSRecord.parse(buf)
+            print("DNS Q %s FROM: %s:%d" % (query.q.qname, addr[0], addr[1]))
+            answer = self._handler.handle(query)
+            with self._lock:
+                self._queue.append((addr, answer))
+        except Exception as e:
+            traceback.print_exc()

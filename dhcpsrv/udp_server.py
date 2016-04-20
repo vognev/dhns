@@ -25,9 +25,17 @@ class UdpServer(BaseServer):
         try:
             query = Packet.parse(buf)
             answer, pool = self._handler.handle(interface, query)
-            if answer.is_broadcast() or addr[0] == '0.0.0.0':
-                print('dhcp: got multicast on %s', interface)
+
+            if not pool:
+                return
+
+            if answer.is_broadcast():
+                print('dhcp: got net broadcast on %s', interface)
                 self.broadcast(answer, interface, addr[1])
+            elif addr[0] == '0.0.0.0':
+                print('dhcp: got adr broadcast on %s', interface)
+                addr = (socket.inet_ntoa(pool.broadcast), addr[1])
+                self._queue.append((addr, answer))
             else:
                 print('dhcp: got unicast from %s', addr[0])
                 self._queue.append((addr, answer))

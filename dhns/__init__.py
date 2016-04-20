@@ -1,6 +1,6 @@
 import dhcpsrv, dnssrv
 from dnssrv.udp_server import UdpServer as DnsUdpServer
-from dnssrv.middlewares import SysHandler
+from dnssrv.middlewares import GoogleDnsHandler
 from dhcpsrv.udp_server import UdpServer as DhcpUdpServer
 from multiplexer import Multiplexer
 import dhcpsrv.middlewares
@@ -16,7 +16,7 @@ class DhcpNameserver():
              DnsUdpServer(('', int(getenv("DNSPORT",  5353))), self.dns),
             DhcpUdpServer(('', int(getenv("DHCPPORT", 6767))), self.dhcp)
         )
-        self.dns.add_middleware(SysHandler(), dnssrv.PRIO_LOWEST)
+        self.dns.add_middleware(GoogleDnsHandler(), dnssrv.PRIO_LOWEST)
 
     def start(self):
         self.mul.start()
