@@ -117,7 +117,7 @@ class DockerHandler(Middleware):
                 hostname = res.get('Config', {}).get('Hostname', None)
                 domain   = res.get('Config', {}).get('Domainname', None)
 
-                if not hostname or not domain or (domain and not hostname):
+                if not hostname or (domain and not hostname):
                     continue
 
                 addrs    = []
@@ -130,7 +130,10 @@ class DockerHandler(Middleware):
                         if net.get('IPAddress'):
                             addrs.append(net['IPAddress'])
 
-                registry[".".join((hostname, domain))] = addrs
+                if domain:
+                    registry[".".join((hostname, domain))] = addrs
+                else:
+                    registry[hostname] = addrs
 
             with self.lock:
                 self.registry = registry
