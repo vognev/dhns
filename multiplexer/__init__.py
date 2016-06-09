@@ -10,7 +10,7 @@ class Multiplexer:
     def start(self):
             self.running = True
             while self.running:
-                r, w, e = select(self.servers, [s for s in self.servers if s.wqlen()], [], 1)
+                r, w, e = select(self.servers, [s for s in self.servers if s.wqlen()], [], .025)
                 for srv in r:
                     srv.read()
                 for srv in w:
