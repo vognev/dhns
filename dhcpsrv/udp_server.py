@@ -1,4 +1,4 @@
-import socket, traceback
+import socket, traceback, logging
 from multiplexer.server import Server as BaseServer
 from dhcplib.packet import Packet
 from dhcpsrv import Handler
@@ -30,14 +30,14 @@ class UdpServer(BaseServer):
                 return
 
             if answer.is_broadcast():
-                print('dhcp: got net broadcast on %s', interface)
+                logging.info('dhcp: got net broadcast on %s', interface)
                 self.broadcast(answer, interface, addr[1])
             elif addr[0] == '0.0.0.0':
-                print('dhcp: got adr broadcast on %s', interface)
+                logging.info('dhcp: got adr broadcast on %s', interface)
                 addr = (socket.inet_ntoa(pool.broadcast), addr[1])
                 self._queue.append((addr, answer))
             else:
-                print('dhcp: got unicast from %s', addr[0])
+                logging.info('dhcp: got unicast from %s', addr[0])
                 self._queue.append((addr, answer))
         except Exception as e:
             traceback.print_exc()

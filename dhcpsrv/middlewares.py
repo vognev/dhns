@@ -1,5 +1,6 @@
 import dhcplib
 import struct
+import logging
 from dhcplib.packet import Packet
 from socket import inet_ntoa, inet_aton
 from dnssrv import Middleware as DnsMiddleware
@@ -58,7 +59,7 @@ class MemoryPool(Middleware, DnsMiddleware):
             elif msg_type == dhcplib.DHCPRELEASE:
                 self.handle_release(query, answer)
             else:
-                print('dhcp: unsupported request type: %s' % msg_type)
+                logging.info('dhcp: unsupported request type: %s' % msg_type)
             return True
 
     def handle_dns_packet(self, query: DNSRecord, answer: DNSRecord):

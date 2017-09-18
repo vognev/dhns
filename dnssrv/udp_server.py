@@ -1,4 +1,4 @@
-import socket, traceback, threading
+import socket, traceback, threading, logging
 from dnslib import DNSRecord
 from multiplexer.server import Server as BaseServer
 from dnssrv import Handler
@@ -34,7 +34,7 @@ class UdpServer(BaseServer):
             buf, addr = self._sock.recvfrom(512)
         try:
             query = DNSRecord.parse(buf)
-            print("DNS Q %s FROM: %s:%d" % (query.q.qname, addr[0], addr[1]))
+            logging.info("DNS Q %s FROM: %s:%d" % (query.q.qname, addr[0], addr[1]))
             answer = self._handler.handle(query)
             with self._lock:
                 self._queue.append((addr, answer))
