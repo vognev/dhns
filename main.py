@@ -1,10 +1,11 @@
-from dnssrv.middlewares import SrvHandler, DockerHandler
+from dnssrv.middlewares import SrvHandler, DockerHandler, GoogleDnsHandler
 from dhcpsrv.middlewares import MemoryPool
 import dhns, logging, socket, struct
 #todo: use dsl, TCP/UDP servers
 logging.basicConfig(level = logging.INFO, format='%(asctime)s %(message)s')
 
 server = dhns.DhcpNameserver()
+
 server.push(MemoryPool(
     address='10.0.4.1',
     netmask='255.255.255.0',
@@ -20,14 +21,7 @@ server.push(MemoryPool(
     }
 ))
 
-server.push(SrvHandler(
-    suffix='lxcsrv.',
-    address='192.168.1.3'
-))
-
-server.push(DockerHandler(
-    baseurl='unix:///var/run/docker.sock'
-))
+server.fallback(SrvHandler('*', '192.168.0.1'))
 
 try:
     server.start()

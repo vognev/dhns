@@ -16,7 +16,6 @@ class DhcpNameserver():
              DnsUdpServer(('', int(getenv("DNSPORT",  5353))), self.dns),
             DhcpUdpServer(('', int(getenv("DHCPPORT", 6767))), self.dhcp)
         )
-        self.dns.add_middleware(GoogleDnsHandler(), dnssrv.PRIO_LOWEST)
 
     def start(self):
         self.mul.start()
@@ -26,6 +25,12 @@ class DhcpNameserver():
 
     def push(self, handler):
         if isinstance(handler, dnssrv.middlewares.Middleware):
-            self.dns.add_middleware(handler)
+            self.dns.add_middleware(handler, dnssrv.PRIO_NORMAL)
         if isinstance(handler, dhcpsrv.middlewares.Middleware):
-            self.dhcp.add_middleware(handler)
+            self.dhcp.add_middleware(handler, dnssrv.PRIO_NORMAL)
+
+    def fallback(self, handler):
+        if isinstance(handler, dnssrv.middlewares.Middleware):
+            self.dns.add_middleware(handler, dnssrv.PRIO_LOWEST)
+        if isinstance(handler, dhcpsrv.middlewares.Middleware):
+            self.dhcp.add_middleware(handler, dnssrv.PRIO_LOWEST)

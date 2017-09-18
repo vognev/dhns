@@ -10,13 +10,13 @@ class Middleware:
 
 
 class SrvHandler(Middleware):
-    def __init__(self, suffix=None, address=None, port=53):
-        self.suffix = suffix
+    def __init__(self, glob='*', address=None, port=53):
+        self.glob = glob
         self.address = address
         self.port = port
 
     def handle_dns_packet(self, query: DNSRecord, answer: DNSRecord):
-        if query.q.qname.matchSuffix(self.suffix):
+        if query.q.qname.matchGlob(self.glob):
             try:
                 local_a = DNSRecord.parse(query.send(self.address, port=self.port))
                 for rr in local_a.rr:
