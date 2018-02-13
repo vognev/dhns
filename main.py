@@ -21,7 +21,7 @@ server.push(MemoryPool(
     }
 ))
 
-server.fallback(SrvHandler('*', '192.168.0.1'))
+server.fallback(GoogleDnsHandler())
 
 try:
     server.start()

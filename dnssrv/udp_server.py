@@ -4,18 +4,25 @@ from multiplexer.server import Server as BaseServer
 from dnssrv import Handler
 
 
+IP_PKTINFO = 8
+
+
 class UdpServer(BaseServer):
     def __init__(self, addr, handler: Handler):
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self._sock.setsockopt(socket.SOL_IP, IP_PKTINFO, 1)
         self._sock.bind(addr)
         self._handler = handler
         self._queue = []
-        self._lock = threading.Lock()
+
+        _, self._port = addr
 
     def read(self):
-        #self.process()
-        thread = threading.Thread(group=None, target=self.process)
+        buf, ancdata, _, addr = self._sock.recvmsg(512, socket.CMSG_SPACE(100))
+        respond = self._get_cmsg_to(ancdata).encode('utf8')
+
+        thread = threading.Thread(group=None, target=self.process, args=(buf, addr, respond))
         thread.start()
 
     def write(self):
@@ -29,14 +36,24 @@ class UdpServer(BaseServer):
     def fileno(self):
         return self._sock.fileno()
 
-    def process(self):
-        with self._lock:
-            buf, addr = self._sock.recvfrom(512)
+    def _get_cmsg_to(self, ancdata):
+        for level, type, data in ancdata:
+            if level == socket.SOL_IP and type == IP_PKTINFO:
+                return socket.inet_ntoa(data[4:8])
+        return None
+
+    def process(self, buf, addr, respond):
         try:
             query = DNSRecord.parse(buf)
-            logging.info("DNS Q %s FROM: %s:%d" % (query.q.qname, addr[0], addr[1]))
+            logging.debug("DNS Q %s FROM: %s:%d" % (query.q.qname, addr[0], addr[1]))
             answer = self._handler.handle(query)
-            with self._lock:
-                self._queue.append((addr, answer))
-        except Exception as e:
+
+            # respond on requested interface
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock.bind((respond, self._port))
+            sock.sendto(answer.pack(), addr)
+            sock.close()
+
+        except Exception:
             traceback.print_exc()

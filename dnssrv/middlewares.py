@@ -18,7 +18,7 @@ class SrvHandler(Middleware):
     def handle_dns_packet(self, query: DNSRecord, answer: DNSRecord):
         if query.q.qname.matchGlob(self.glob):
             try:
-                local_a = DNSRecord.parse(query.send(self.address, port=self.port))
+                local_a = DNSRecord.parse(query.send(self.address, port=self.port, timeout=1.0))
                 for rr in local_a.rr:
                     answer.add_answer(rr)
                 return True
