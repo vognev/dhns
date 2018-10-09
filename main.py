@@ -1,24 +1,28 @@
-from dnssrv.middlewares import SrvHandler, DockerHandler, GoogleDnsHandler
+from dnssrv.middlewares import DockerHandler, GoogleDnsHandler, FixHandler
 from dhcpsrv.middlewares import MemoryPool
-import dhns, logging, socket, struct
-#todo: use dsl, TCP/UDP servers
+from dnslib import QTYPE
+import dhns, logging
 logging.basicConfig(level = logging.INFO, format='%(asctime)s %(message)s')
 
 server = dhns.DhcpNameserver()
 
-server.push(MemoryPool(
-    address='10.0.4.1',
-    netmask='255.255.255.0',
-    gateway='10.0.4.1',
-    nameservers=['10.0.4.1'],
-    domain=b'lxcnet',
-    globals={
-        'file': b'/pxelinux.0',
-        'siaddr': socket.inet_aton('10.0.4.1')
-    },
-    entries={
+server.push(DockerHandler(
+    docker = 'unix:///var/run/docker.sock',
+    domain = 'docker',
+))
 
-    }
+server.push(FixHandler([
+    ('cluster.kvm', QTYPE.A, '10.3.2.2'),
+    ('cluster.kvm', QTYPE.A, '10.3.2.3'),
+    ('cluster.kvm', QTYPE.A, '10.3.2.4')
+]))
+
+server.push(MemoryPool(
+    address='10.3.2.1',
+    netmask='255.255.255.0',
+    gateway='10.3.2.1',
+    nameservers=['10.3.2.1'],
+    domain=b'kvm',
 ))
 
 server.fallback(GoogleDnsHandler())
