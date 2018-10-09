@@ -15,7 +15,7 @@ class Middleware:
 # todo: inject lease time
 # todo: handle expiration
 class MemoryPool(Middleware, DnsMiddleware):
-    def __init__(self, address=None, netmask=None, nameservers=None, gateway=None, domain=None, globals=None, entries=None):
+    def __init__(self, address=None, netmask=None, nameservers=None, gateway=None, domain=None, entries=None):
         self.domain = domain
         self.address = inet_aton(address)
         self.netmask = inet_aton(netmask)
@@ -37,7 +37,6 @@ class MemoryPool(Middleware, DnsMiddleware):
         self.leases = {}
         self.offers = {}
 
-        self.globals = globals if globals else {}
         self.entries = entries if entries else {}
 
         self.reserved = {}
@@ -96,7 +95,6 @@ class MemoryPool(Middleware, DnsMiddleware):
         answer.yiaddr = b_ipaddr
         for (k, v) in options.items():
             answer.opts[k] = v
-        self.finalize(s_hwaddr, query, answer)
 
     def handle_request(self, query: Packet, answer: Packet):
         b_hwaddr = query.chaddr
@@ -124,7 +122,6 @@ class MemoryPool(Middleware, DnsMiddleware):
         answer.yiaddr = b_ipaddr
         for (k, v) in options.items():
             answer.opts[k] = v
-        self.finalize(s_hwaddr, query, answer)
 
     def handle_decline(self, query: Packet, answer: Packet):
         b_hwaddr = query.chaddr
@@ -145,7 +142,6 @@ class MemoryPool(Middleware, DnsMiddleware):
         answer.opts[dhcplib.DHCPOPT_MSG_TYPE] = struct.pack('!B', dhcplib.DHCPACK)
 
     def allocate(self, s_hwaddr):
-
         hostopts = self.entries.get(s_hwaddr)
         if hostopts and hostopts.get("address"):
             return inet_aton(hostopts.get("address"))
@@ -189,33 +185,18 @@ class MemoryPool(Middleware, DnsMiddleware):
         if self.resolvers:
             options[dhcplib.DHCPOPT_RESOLVER] = self.resolvers
 
-        for (idx, val) in self.globals.get('opions', {}).items():
-            options[idx] = val
-
         if self.entries.get(hwaddr):
             for (idx, val) in self.entries[hwaddr].get("options", {}).items():
                 options[idx] = val
 
-        if query.opts.get(dhcplib.DHCPOPT_HOSTNAME):
+        if self.entries.get(hwaddr, {}).get("hostname"):
+            options[dhcplib.DHCPOPT_HOSTNAME] = bytes(self.entries.get(hwaddr).get("hostname"), 'ascii')
+        elif query.opts.get(dhcplib.DHCPOPT_HOSTNAME):
             options[dhcplib.DHCPOPT_HOSTNAME] = query.opts[dhcplib.DHCPOPT_HOSTNAME]
         elif not options.get(dhcplib.DHCPOPT_HOSTNAME):
             options[dhcplib.DHCPOPT_HOSTNAME] = bytes(hwaddr, 'ascii')
 
         return options
-
-    def finalize(self, hwaddr, query, answer):
-        siaddr = self.entries.get('options', {}).get('siaddr')
-        if not siaddr:
-            siaddr = self.globals.get('siaddr')
-        if siaddr:
-            answer.siaddr = siaddr
-
-        file = self.entries.get('options', {}).get('file')
-        if not file:
-            file = self.globals.get('file')
-        if file:
-            answer.file = file.ljust(128, chr(0).encode())
-
 
     def addr_in_network(self, b_ipaddr):
         address = bytes([(a & b) for (a, b) in zip(b_ipaddr, self.netmask)])
