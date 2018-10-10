@@ -253,7 +253,8 @@ class DockerHandler(Middleware):
 
         domain = labels.get('com.dhns.domain')
         if domain is not None:
-            names.append(domain)
+            for name in domain.split(';'):
+                names.append(name)
 
         return names
 
