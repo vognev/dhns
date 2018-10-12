@@ -77,6 +77,8 @@ class MemoryPool(Middleware, DnsMiddleware):
         s_hwaddr = self.fmt_hwaddr(b_hwaddr, query.hlen)
         b_ipaddr = query.opts.get(dhcplib.DHCPOPT_IPADDR)
 
+        logging.info('dhcp: discover - %s', s_hwaddr)
+
         lease, offer = self.leases.pop(s_hwaddr, None), self.offers.pop(s_hwaddr, None)
 
         if b_ipaddr is None:
@@ -100,6 +102,8 @@ class MemoryPool(Middleware, DnsMiddleware):
         b_hwaddr = query.chaddr
         s_hwaddr = self.fmt_hwaddr(b_hwaddr, query.hlen)
         b_ipaddr = query.opts.get(dhcplib.DHCPOPT_IPADDR)
+
+        logging.info('dhcp: request - %s', s_hwaddr)
 
         lease, offer = self.leases.pop(s_hwaddr, None), self.offers.pop(s_hwaddr, None)
 
@@ -127,6 +131,8 @@ class MemoryPool(Middleware, DnsMiddleware):
         b_hwaddr = query.chaddr
         s_hwaddr = self.fmt_hwaddr(b_hwaddr, query.hlen)
 
+        logging.info('dhcp: decline - %s', s_hwaddr)
+
         self.leases.pop(s_hwaddr, None)
         self.offers.pop(s_hwaddr, None)
 
@@ -135,6 +141,8 @@ class MemoryPool(Middleware, DnsMiddleware):
     def handle_release(self, query: Packet, answer: Packet):
         b_hwaddr = query.chaddr
         s_hwaddr = self.fmt_hwaddr(b_hwaddr, query.hlen)
+
+        logging.info('dhcp: release - %s', s_hwaddr)
 
         self.leases.pop(s_hwaddr, None)
         self.offers.pop(s_hwaddr, None)
@@ -177,6 +185,7 @@ class MemoryPool(Middleware, DnsMiddleware):
             dhcplib.DHCPOPT_NETMASK: self.netmask,
             dhcplib.DHCPOPT_BROADCAST: self.broadcast,
             dhcplib.DHCPOPT_LEASE_TIME: struct.pack('!I', 3600),
+            dhcplib.DHCPOPT_DOMAIN: self.domain
         }
 
         if self.gateway:
