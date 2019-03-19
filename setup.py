@@ -1,9 +1,9 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
   name='dhns',
   version='0.0.1',
-  install_requires=['dnslib == 0.9.6', 'cachetools == 1.1.5', 'docker == 3.3.0'],
+  install_requires=['dnslib', 'cachetools', 'docker'],
   scripts=['main.py'],
-  packages=['dhcplib', 'dhcpsrv', 'dhns', 'dnssrv', 'multiplexer', 'resolvconf']
+  packages=find_packages()
 )

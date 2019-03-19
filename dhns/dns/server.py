@@ -1,13 +1,13 @@
 import socket, traceback, threading, logging
 from dnslib import DNSRecord
-from multiplexer.server import Server as BaseServer
-from dnssrv import Handler
+from dhns.mux import Server as MuxServer
+from dhns.dns import Handler
 
 
 IP_PKTINFO = 8
 
 
-class UdpServer(BaseServer):
+class UdpServer(MuxServer):
     def __init__(self, addr, handler: Handler):
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

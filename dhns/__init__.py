@@ -1,20 +1,20 @@
-import dhcpsrv, dnssrv
-from dnssrv.udp_server import UdpServer as DnsUdpServer
-from dnssrv.middlewares import GoogleDnsHandler
-from dhcpsrv.udp_server import UdpServer as DhcpUdpServer
-from multiplexer import Multiplexer
-import dhcpsrv.middlewares
-import dnssrv.middlewares
+from dhns.mux import Multiplexer
 from os import getenv
+import dhns.dns, dhns.dhcp, dhns.dns.server, dhns.dhcp.server
 
 
-class DhcpNameserver():
+PRIO_HIGHEST = 100
+PRIO_NORMAL = 50
+PRIO_LOWEST = 0
+
+
+class Server():
     def __init__(self):
-        self.dns  = dnssrv.Handler()
-        self.dhcp = dhcpsrv.Handler()
+        self.dns  = dhns.dns.Handler()
+        self.dhcp = dhns.dhcp.Handler()
         self.mul  = Multiplexer(
-             DnsUdpServer(('', int(getenv("DNSPORT",  5353))), self.dns),
-            DhcpUdpServer(('', int(getenv("DHCPPORT", 6767))), self.dhcp)
+             dhns.dns.server.UdpServer(('', int(getenv("DNSPORT",  5353))), self.dns),
+            dhns.dhcp.server.UdpServer(('', int(getenv("DHCPPORT", 6767))), self.dhcp)
         )
 
     def start(self):
@@ -23,14 +23,14 @@ class DhcpNameserver():
     def stop(self):
         self.mul.stop()
 
-    def push(self, handler):
-        if isinstance(handler, dnssrv.middlewares.Middleware):
-            self.dns.add_middleware(handler, dnssrv.PRIO_NORMAL)
-        if isinstance(handler, dhcpsrv.middlewares.Middleware):
-            self.dhcp.add_middleware(handler, dnssrv.PRIO_NORMAL)
+    def use(self, handler):
+        if isinstance(handler, dhns.dns.Middleware):
+            self.dns.add_middleware(handler, PRIO_NORMAL)
+        if isinstance(handler, dhns.dhcp.Middleware):
+            self.dhcp.add_middleware(handler, PRIO_NORMAL)
 
     def fallback(self, handler):
-        if isinstance(handler, dnssrv.middlewares.Middleware):
-            self.dns.add_middleware(handler, dnssrv.PRIO_LOWEST)
-        if isinstance(handler, dhcpsrv.middlewares.Middleware):
-            self.dhcp.add_middleware(handler, dnssrv.PRIO_LOWEST)
+        if isinstance(handler, dhns.dns.Middleware):
+            self.dns.add_middleware(handler, PRIO_LOWEST)
+        if isinstance(handler, dhns.dhcp.Middleware):
+            self.dhcp.add_middleware(handler, PRIO_LOWEST)

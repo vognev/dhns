@@ -1,17 +1,16 @@
-from dhcplib.packet import Packet
-from dhcpsrv.middlewares import Middleware
+from dhns.dhcp.proto.packet import Packet
 
 
-PRIO_HIGHEST = 100
-PRIO_NORMAL = 50
-PRIO_LOWEST = 0
+class Middleware:
+    def handle_dhcp_packet(self, interface, query: Packet, answer: Packet):
+        raise NotImplemented
 
 
 class Handler:
     def __init__(self):
         self.middleware = []
 
-    def add_middleware(self, middleware: Middleware, priority = PRIO_NORMAL):
+    def add_middleware(self, middleware: Middleware, priority):
         self.middleware.append((middleware, priority))
         self._sort()
 

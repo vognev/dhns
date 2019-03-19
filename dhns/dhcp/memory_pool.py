@@ -1,15 +1,10 @@
-import dhcplib
-import struct
-import logging
-from dhcplib.packet import Packet
+import struct, logging
 from socket import inet_ntoa, inet_aton
-from dnssrv import Middleware as DnsMiddleware
 from dnslib import RR, DNSRecord, RDMAP, QTYPE
-
-
-class Middleware:
-    def handle_dhcp_packet(self, interface, query: Packet, answer: Packet):
-        raise NotImplemented
+from dhns.dhcp.proto.packet import Packet
+from dhns.dhcp import Middleware
+from dhns.dns import Middleware as DnsMiddleware
+import dhns.dhcp.proto as proto
 
 # todo: merge lease/offer
 # todo: inject lease time
@@ -47,15 +42,15 @@ class MemoryPool(Middleware, DnsMiddleware):
 
     def handle_dhcp_packet(self, interface, query: Packet, answer: Packet):
         if interface == inet_ntoa(self.address):
-            answer.opts[dhcplib.DHCPOPT_SERVER_ID] = self.address
-            msg_type, = struct.unpack('!B', query.opts.get(dhcplib.DHCPOPT_MSG_TYPE))
-            if msg_type == dhcplib.DHCPDISCOVER:
+            answer.opts[proto.DHCPOPT_SERVER_ID] = self.address
+            msg_type, = struct.unpack('!B', query.opts.get(proto.DHCPOPT_MSG_TYPE))
+            if msg_type == proto.DHCPDISCOVER:
                 self.handle_discover(query, answer)
-            elif msg_type == dhcplib.DHCPREQUEST:
+            elif msg_type == proto.DHCPREQUEST:
                 self.handle_request(query, answer)
-            elif msg_type == dhcplib.DHCPDECLINE:
+            elif msg_type == proto.DHCPDECLINE:
                 self.handle_decline(query, answer)
-            elif msg_type == dhcplib.DHCPRELEASE:
+            elif msg_type == proto.DHCPRELEASE:
                 self.handle_release(query, answer)
             else:
                 logging.info('dhcp: unsupported request type: %s' % msg_type)
@@ -75,7 +70,7 @@ class MemoryPool(Middleware, DnsMiddleware):
     def handle_discover(self, query: Packet, answer: Packet):
         b_hwaddr = query.chaddr
         s_hwaddr = self.fmt_hwaddr(b_hwaddr, query.hlen)
-        b_ipaddr = query.opts.get(dhcplib.DHCPOPT_IPADDR)
+        b_ipaddr = query.opts.get(proto.DHCPOPT_IPADDR)
 
         logging.info('dhcp: discover - %s', s_hwaddr)
 
@@ -93,7 +88,7 @@ class MemoryPool(Middleware, DnsMiddleware):
         options = self.get_options(s_hwaddr, query)
         self.offers[s_hwaddr] = (b_ipaddr, options)
 
-        answer.opts[dhcplib.DHCPOPT_MSG_TYPE] = struct.pack('!B', dhcplib.DHCPOFFER)
+        answer.opts[proto.DHCPOPT_MSG_TYPE] = struct.pack('!B', proto.DHCPOFFER)
         answer.yiaddr = b_ipaddr
         for (k, v) in options.items():
             answer.opts[k] = v
@@ -101,7 +96,7 @@ class MemoryPool(Middleware, DnsMiddleware):
     def handle_request(self, query: Packet, answer: Packet):
         b_hwaddr = query.chaddr
         s_hwaddr = self.fmt_hwaddr(b_hwaddr, query.hlen)
-        b_ipaddr = query.opts.get(dhcplib.DHCPOPT_IPADDR)
+        b_ipaddr = query.opts.get(proto.DHCPOPT_IPADDR)
 
         logging.info('dhcp: request - %s', s_hwaddr)
 
@@ -122,7 +117,7 @@ class MemoryPool(Middleware, DnsMiddleware):
 
         self.leases[s_hwaddr] = (b_ipaddr, options)
 
-        answer.opts[dhcplib.DHCPOPT_MSG_TYPE] = struct.pack('!B', dhcplib.DHCPACK)
+        answer.opts[proto.DHCPOPT_MSG_TYPE] = struct.pack('!B', proto.DHCPACK)
         answer.yiaddr = b_ipaddr
         for (k, v) in options.items():
             answer.opts[k] = v
@@ -136,7 +131,7 @@ class MemoryPool(Middleware, DnsMiddleware):
         self.leases.pop(s_hwaddr, None)
         self.offers.pop(s_hwaddr, None)
 
-        answer.opts[dhcplib.DHCPOPT_MSG_TYPE] = struct.pack('!B', dhcplib.DHCPACK)
+        answer.opts[proto.DHCPOPT_MSG_TYPE] = struct.pack('!B', proto.DHCPACK)
 
     def handle_release(self, query: Packet, answer: Packet):
         b_hwaddr = query.chaddr
@@ -147,7 +142,7 @@ class MemoryPool(Middleware, DnsMiddleware):
         self.leases.pop(s_hwaddr, None)
         self.offers.pop(s_hwaddr, None)
 
-        answer.opts[dhcplib.DHCPOPT_MSG_TYPE] = struct.pack('!B', dhcplib.DHCPACK)
+        answer.opts[proto.DHCPOPT_MSG_TYPE] = struct.pack('!B', proto.DHCPACK)
 
     def allocate(self, s_hwaddr):
         hostopts = self.entries.get(s_hwaddr)
@@ -176,34 +171,34 @@ class MemoryPool(Middleware, DnsMiddleware):
 
     def get_hostname_ip(self, hostname):
         for idx in self.leases:
-            if self.leases[idx][1].get(dhcplib.DHCPOPT_HOSTNAME, None) == hostname:
+            if self.leases[idx][1].get(proto.DHCPOPT_HOSTNAME, None) == hostname:
                 return self.leases[idx][0]
         return None
 
     def get_options(self, hwaddr, query):
         options = {
-            dhcplib.DHCPOPT_NETMASK: self.netmask,
-            dhcplib.DHCPOPT_BROADCAST: self.broadcast,
-            dhcplib.DHCPOPT_LEASE_TIME: struct.pack('!I', 3600),
-            dhcplib.DHCPOPT_DOMAIN: self.domain
+            proto.DHCPOPT_NETMASK: self.netmask,
+            proto.DHCPOPT_BROADCAST: self.broadcast,
+            proto.DHCPOPT_LEASE_TIME: struct.pack('!I', 3600),
+            proto.DHCPOPT_DOMAIN: self.domain
         }
 
         if self.gateway:
-            options[dhcplib.DHCPOPT_GATEWAY] = self.gateway
+            options[proto.DHCPOPT_GATEWAY] = self.gateway
 
         if self.resolvers:
-            options[dhcplib.DHCPOPT_RESOLVER] = self.resolvers
+            options[proto.DHCPOPT_RESOLVER] = self.resolvers
 
         if self.entries.get(hwaddr):
             for (idx, val) in self.entries[hwaddr].get("options", {}).items():
                 options[idx] = val
 
         if self.entries.get(hwaddr, {}).get("hostname"):
-            options[dhcplib.DHCPOPT_HOSTNAME] = bytes(self.entries.get(hwaddr).get("hostname"), 'ascii')
-        elif query.opts.get(dhcplib.DHCPOPT_HOSTNAME):
-            options[dhcplib.DHCPOPT_HOSTNAME] = query.opts[dhcplib.DHCPOPT_HOSTNAME]
-        elif not options.get(dhcplib.DHCPOPT_HOSTNAME):
-            options[dhcplib.DHCPOPT_HOSTNAME] = bytes(hwaddr, 'ascii')
+            options[proto.DHCPOPT_HOSTNAME] = bytes(self.entries.get(hwaddr).get("hostname"), 'ascii')
+        elif query.opts.get(proto.DHCPOPT_HOSTNAME):
+            options[proto.DHCPOPT_HOSTNAME] = query.opts[proto.DHCPOPT_HOSTNAME]
+        elif not options.get(proto.DHCPOPT_HOSTNAME):
+            options[proto.DHCPOPT_HOSTNAME] = bytes(hwaddr, 'ascii')
 
         return options
 

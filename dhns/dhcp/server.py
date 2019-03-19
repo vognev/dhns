@@ -1,7 +1,7 @@
 import socket, traceback, logging
-from multiplexer.server import Server as BaseServer
-from dhcplib.packet import Packet
-from dhcpsrv import Handler
+from dhns.mux import Server as BaseServer
+from dhns.dhcp.proto.packet import Packet
+from dhns.dhcp import Handler
 from os import getenv
 
 

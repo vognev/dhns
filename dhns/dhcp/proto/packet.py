@@ -1,5 +1,4 @@
-import dhcplib, struct, io, socket
-import dhcplib.errors as errors
+import struct, io, socket
 
 
 DHCPMagic = bytes(bytearray((0x63, 0x82, 0x53, 0x63)))
@@ -7,11 +6,13 @@ UInt8 = '!B'
 UInt16 = '!H'
 UInt32 = '!I'
 
+BOOTREQUEST = 1
+BOOTREPLY = 2
+
 
 class Packet:
-
     def is_incoming(self):
-        return 1 == self.op
+        return BOOTREQUEST == self.op
 
     def is_broadcast(self):
         return self.flags & 0x8000
@@ -43,7 +44,7 @@ class Packet:
 
     def reply(self):
         reply = Packet()
-        reply.op = dhcplib.BOOTREPLY
+        reply.op = BOOTREPLY
         reply.htype = self.htype
         reply.hlen = self.hlen
         reply.xid = self.xid
@@ -84,7 +85,7 @@ class Packet:
 
         magic = myio.read(4)
         if magic != DHCPMagic:
-            raise errors.InvalidMagic
+            raise InvalidMagic
 
         while True:
             opt_code, = struct.unpack(UInt8, myio.read(struct.calcsize(UInt8)))
@@ -130,3 +131,7 @@ class Packet:
         myio.write(struct.pack(UInt8, 255))
 
         return myio.getvalue()
+
+
+class InvalidMagic(Exception):
+    pass
