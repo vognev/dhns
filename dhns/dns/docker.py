@@ -1,15 +1,56 @@
-from collections import defaultdict, namedtuple
+from typeguard import typechecked
+from collections import namedtuple
 from dnslib import DNSLabel, DNSRecord, QTYPE, RR, RDMAP
 from dhns.dns import Middleware
-import threading, re, json
+import threading, re, json, logging
 
-Container = namedtuple('Container', 'id, name, running, addrs')
+Container = namedtuple('Container', 'id, name, state, addrs')
 RE_VALIDNAME = re.compile('[^\w\d.-]')
+
 
 def get(d, *keys):
     from functools import reduce
     empty = {}
     return reduce(lambda d, k: d.get(k, empty), keys, d) or None
+
+
+class Storage:
+    def __init__(self):
+        self._data = {}
+        self._lock = self._lock = threading.Lock()
+
+    @typechecked
+    def append(self, key:str, val:list):
+        logging.info("+ %s %s" % (key, val))
+        with self._lock:
+            try:
+                self._data[key]['ref'] += 1
+                self._data[key]['adr'].extend(val)
+            except KeyError:
+                self._data[key] = {'ref': 1, 'adr': val}
+
+    @typechecked
+    def remove(self, key:str):
+        with self._lock:
+            try:
+                if self._data[key]['ref'] == 1:
+                    logging.info("D %s" % key)
+                    self._data.pop(key)
+                else:
+                    logging.info("- %s" % key)
+                    self._data[key]['ref'] -= 1
+            except KeyError:
+                pass
+        pass
+
+    @typechecked
+    def query(self, key:str) -> list :
+        with self._lock:
+            try:
+                return self._data[key]['adr']
+            except KeyError:
+                return []
+
 
 class Resolver(Middleware):
     def __init__(self, docker='unix:///var/run/docker.sock', domain='docker'):
@@ -18,55 +59,10 @@ class Resolver(Middleware):
         self._docker = DockerClient(docker, version='auto')
         self._domain = domain
 
-        self._storage = defaultdict(set)
+        self._storage = Storage()
         self._lock = threading.Lock()
 
         threading.Thread(group=None, target=self.listen).start()
-
-    def add(self, name, addr):
-        key = self._key(name)
-        if key:
-            with self._lock:
-                # log('table.add %s -> %s', name, addr)
-                self._storage[key].add(addr)
-
-    def get(self, name):
-        key = self._key(name)
-        if key:
-            with self._lock:
-                res = self._storage.get(key)
-                if not res:
-                    pass #log('table.get %s with NoneType' % (name))
-                else:
-                    pass #log('table.get %s with %s' % (name, ", ".join(addr for addr in res)))
-                return res
-
-    def rename(self, old_name, new_name):
-        if not old_name or not new_name:
-            return
-        old_name = old_name.lstrip('/')
-        old_key = self._key(old_name)
-        new_key = self._key(new_name)
-        with self._lock:
-            self._storage[new_key] = self._storage.pop(old_key)
-            #log('table.rename (%s -> %s)', old_name, new_name)
-
-    def remove(self, name):
-        key = self._key(name)
-        if key:
-            with self._lock:
-                if key in self._storage:
-                    # log('table.remove %s', name)
-                    del self._storage[key]
-
-    def _key(self, name):
-        try:
-            return DNSLabel(name.lower()).label
-        except Exception:
-            return None
-
-    def __del__(self):
-        self.running = False
 
     def listen(self):
         self.running = True
@@ -75,41 +71,28 @@ class Resolver(Middleware):
 
         for container in self._docker.containers.list():
             for rec in self._inspect(container):
-                for addr in rec.addrs:
-                    self.add(rec.name, addr)
+                self._storage.append(rec.name, rec.addrs)
 
         for raw in events:
             if not self.running:
                 break
 
             evt = json.loads(raw)
-            if evt.get('Type', 'container') == 'container':
-                cid = evt.get('id')
-                if cid is None:
-                    continue
+            if evt.get('Type', 'container') != 'container':
+                continue
 
-                status = evt.get('status')
-                if status in set(('start', 'die', 'rename')):
-                    try:
-                        container = self._docker.containers.get(cid)
+            cid = evt.get('id')
+            if cid is None:
+                continue
 
-                        for rec in self._inspect(container):
-                            if status == 'start':
-                                for addr in rec.addrs:
-                                    self.add(rec.name, addr)
-
-                            elif status == 'rename':
-                                old_name = get(evt, 'Actor', 'Attributes', 'oldName')
-                                new_name = get(evt, 'Actor', 'Attributes', 'name')
-                                old_name = '.'.join((old_name, self._domain))
-                                new_name = '.'.join((new_name, self._domain))
-                                self.rename(old_name, new_name)
-
-                            else:
-                                self.remove(rec.name)
-
-                    except Exception as e:
-                        pass #log('Error: %s', e)
+            status = evt.get('status')
+            if status in {'start', 'die'}:
+                container = self._docker.containers.get(cid)
+                for rec in self._inspect(container):
+                    if status == 'start':
+                        self._storage.append(rec.name, rec.addrs)
+                    else:
+                        self._storage.remove(rec.name)
 
     def _inspect(self, container):
         name = get(container.attrs, 'Name')
@@ -152,22 +135,18 @@ class Resolver(Middleware):
         return names
 
     def handle_dns_packet(self, query: DNSRecord, answer: DNSRecord):
-        addrs = None
+        addrs = []
 
         if query.q.qtype in (QTYPE.A, QTYPE.ANY):
-            addrs = self.get(query.q.qname.idna())
+            addrs = self._storage.query(
+                str(query.q.qname).rstrip('.')
+            )
 
-        if addrs is not None:
-            for addr in self._resolve_addresses(addrs):
+        if len(addrs):
+            for addr in addrs:
                 answer.add_answer(
                     RR(rname=query.q.qname, rtype=QTYPE.A, ttl=60, rdata=RDMAP["A"](addr))
                 )
+
             return self
 
-    def _resolve_addresses(self, addresses):
-        list = []
-
-        for addr in addresses:
-            list.append(addr)
-
-        return set(list)

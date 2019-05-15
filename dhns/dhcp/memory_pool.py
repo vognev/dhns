@@ -1,4 +1,4 @@
-import struct, logging
+import struct, logging, shelve
 from socket import inet_ntoa, inet_aton
 from dnslib import RR, DNSRecord, RDMAP, QTYPE
 from dhns.dhcp.proto.packet import Packet
@@ -29,8 +29,8 @@ class MemoryPool(Middleware, DnsMiddleware):
         else:
             self.gateway = None
 
-        self.leases = {}
-        self.offers = {}
+        self.leases = shelve.open('%s-leases' % domain)
+        self.offers = shelve.open('%s-offers' % domain)
 
         self.entries = entries if entries else {}
 
