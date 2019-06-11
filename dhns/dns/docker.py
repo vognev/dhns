@@ -115,15 +115,14 @@ class Resolver(Middleware):
         names = [ RE_VALIDNAME.sub('', name).rstrip('.') ]
 
         labels = labels or {}
-        instance = int(labels.get('com.docker.compose.container-number', 1))
+
+        instance = labels.get('com.docker.compose.container-number')
         service = labels.get('com.docker.compose.service')
         project = labels.get('com.docker.compose.project')
 
         if all((instance, service, project)):
-            names.append('%d.%s.%s' % (instance, service, project))
-
-            if instance == 1:
-                names.append('%s.%s' % (service, project))
+            names.append('%s.%s.%s' % (instance, service, project))
+            names.append('%s.%s' % (service, project))
 
         names = [ '.'.join((name, self._domain)) for name in names ]
 
