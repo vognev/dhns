@@ -29,8 +29,8 @@ class MemoryPool(Middleware, DnsMiddleware):
         else:
             self.gateway = None
 
-        self.leases = shelve.open('%s-leases' % domain)
-        self.offers = shelve.open('%s-offers' % domain)
+        self.leases = shelve.open('%s.leases' % domain.decode('utf8'))
+        self.offers = shelve.open('%s.offers' % domain.decode('utf8'))
 
         self.entries = entries if entries else {}
 
