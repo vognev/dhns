@@ -1,4 +1,5 @@
 from dnslib import RR, DNSRecord, RDMAP, QTYPE
+from os import getenv
 
 
 class Middleware:
@@ -60,8 +61,21 @@ class FixHandler(Middleware):
         records = []
 
         for rec in self.records:
-            if qname == rec[0]:
+            if qname.matchGlob(rec[0]):
                 found = True
+                if qtype == QTYPE.A and rec[1] == QTYPE.CNAME:
+                    # self-resolve it as A additionally
+                    local_q = DNSRecord.question(rec[2], "A")
+                    local_a = DNSRecord.parse(local_q.send('localhost', port=int(getenv("DNSPORT", 5353)), timeout=1.0))
+
+                    for rr in local_a.rr:
+                        records.append((
+                            qname,
+                            rr.rtype,
+                            str(rr.rdata)
+                        ))
+
+                    # records.append((qname, rec[1], rec[2]))
                 if qtype == QTYPE.ANY:
                     records.append(rec)
                 elif qtype == rec[1]:
