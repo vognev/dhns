@@ -3,8 +3,11 @@ from select import select
 
 class Multiplexer:
     def __init__(self, *args):
-        self.servers = args
+        self.servers = list(args)
         self.running = False
+
+    def add(self, server):
+        self.servers.append(server)
 
     def start(self):
             self.running = True

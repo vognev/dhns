@@ -1,6 +1,7 @@
 from dhns.mux import Multiplexer
 from os import getenv
 import dhns.dns, dhns.dhcp, dhns.dns.server, dhns.dhcp.server
+import dhns.mds.server
 
 
 PRIO_HIGHEST = 100
@@ -15,6 +16,11 @@ class Server():
         self.mul  = Multiplexer(
              dhns.dns.server.UdpServer(('', int(getenv("DNSPORT",  5353))), self.dns),
             dhns.dhcp.server.UdpServer(('', int(getenv("DHCPPORT", 6767))), self.dhcp)
+        )
+
+    def with_mds(self, **kwargs):
+        self.mul.add(
+            dhns.mds.server.TcpServer(('169.254.169.254', int(getenv("MDSPORT", 8081))), **kwargs)
         )
 
     def start(self):
