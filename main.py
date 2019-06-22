@@ -4,6 +4,8 @@ logging.basicConfig(level = logging.INFO, format='%(asctime)s %(message)s')
 
 server = dhns.Server()
 
+server.with_mds()
+
 server.use(dhns.dns.docker.Resolver(
     docker = 'unix:///var/run/docker.sock',
     domain = 'docker',
